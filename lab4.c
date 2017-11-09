@@ -3,6 +3,9 @@
 #include <stdlib.h>
 #include <sys/timeb.h>
 #include <sys/wait.h>
+#include <time.h>
+
+int randomNumber = 0;
 
 /* clear standart text mode window */
 
@@ -26,43 +29,59 @@ void clrscr() {
 
 /* position cursor in standart text window */
 
-void gotoxy(int tx, int ty, char c) {
-	unsigned char esc[16];
-	static unsigned char ystr[3]; /* vertical cursor location */
-	static unsigned char xstr[3]; /* horizontal cursor location */
-	int i;                        /* ESC-sequence current index */
-	int j;                        /* cursor location current index */
+void gotoxy(int dist, int ty, char c) {
+	unsigned char esc[11];
+	static unsigned char ystr[3];
+	static unsigned char xstr[3];
 
-	/* convert cursor location to text format */
+	static int notAvailableX[100];
 
-	if((tx > 99) || (ty > 99))
-	  tx = ty = 99;
-	if((tx < 1) || (ty < 1))
-	  tx = ty = 1;
+	unsigned char s;
+	int i;
+	int j;
+
+	if(ty > 99)
+	  ty = 99;
+	if(ty < 1)
+	  ty = 1;
+
+	srand((unsigned) time(NULL) * getpid());
+	int pos = rand() % dist;
+
+	/*while (notAvailableX[pos]) {
+		srand((unsigned) time(NULL) * getpid());
+		pos = rand() % dist;
+	}
+	notAvailableX[pos] = 1;*/
+
+	if (notAvailableX[pos]) {
+		pos += randomNumber;
+		pos = rand() % 10;
+	}
+	notAvailableX[pos] = 1;
+
+
 	xstr[0] = xstr[1] = xstr[2] = '\0';
 	ystr[0] = ystr[1] = ystr[2] = '\0';
 
-	sprintf((char *) xstr,"%d",tx);
 	sprintf((char *) ystr,"%d",ty);
-
-	/* obtain goto escape sequence */
+	sprintf((char *) xstr,"%d",pos);
 
 	esc[0] = 27; esc[1] = '[';
-	i=2; j=0;
+	i = 2; j = 0;
 	while(ystr[j])
-	  esc[i++]=ystr[j++];
-	j=0;
+		esc[i++]=ystr[j++];
+	j = 0;
 	esc[i++]=';';
 	while(xstr[j])
 	  esc[i++]=xstr[j++];
-	esc[i++]='H';
-	esc[i++]='\b';
-	esc[i++]=' ';
+	esc[i++] = 'H';
 	esc[i++] = c;
 	esc[i] = '\0';
 	write(1,esc,i);
 
 	return;
+
 }
 
 int main(int argc, char* argv[]) {
@@ -79,18 +98,22 @@ int main(int argc, char* argv[]) {
 	struct timeb tp[1];
 	int jump;
 
+	srand((unsigned) time(NULL) * getpid());
+	randomNumber = rand();
+
 	clrscr();
 	while(j < PROCNUM) {
 		if((pid[j] = fork()) == 0) {
-			//usleep(PROCNUM - j);
+			usleep(PROCNUM - j);
 	    	while(x < dist) {
-	      		gotoxy(x, j + 1, 'A' + j);
+	      		gotoxy(dist, j + 1, 'A' + j);
 	      		ftime(tp);
 	      		if((tp[0].millitm % (j + 'A')) != j)
 	        		continue;
 	      	x++;
-	     	for(i=0; i<1000000; i++);
+	     	for(i=0; i<100000000; i++);
 	    	}
+	      	
 	    	exit('A' + j);
 	  	}
 	  	j++;
